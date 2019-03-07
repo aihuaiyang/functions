@@ -8,7 +8,12 @@ class Functions{
         echo 'hello world';
     }
 
+
+    private static function throw_exception($msg){
+        throw new FunctionException($msg);
+    }
     public static function buildSuccessResponse($data=[],$msg='success',$status_code=0){
+
 
         $response['result'] = 1;
         $response['message'] = $msg;
@@ -68,7 +73,7 @@ class Functions{
 
             if(1 == count($regular)){
                 if('' === $request -> input($k) || 'no' === $request -> input($k,'no') || null === $request -> input($k)){
-                    return $name.'参数不能为空';
+                    self::throw_exception($name.'参数不能为空');
                 }
             }else{
                 //字段类型
@@ -76,16 +81,15 @@ class Functions{
                 if('array' == $type){
                     $array = $request -> input($k);
                     if('array' != gettype($array)){
-                        return $name . '数据类型应为数组';
+                        self::throw_exception($name.'数据类型应为数组');
                     }
-
                     if(0 == count($array)){
-                        return $name.'参数不能为空';
+                        self::throw_exception($name.'参数不能为空');
                     }
 
                 }else{
                     if('' === $request -> input($k) || 'no' === $request -> input($k,'no') || null === $request -> input($k)){
-                        return $name.'参数不能为空';
+                        self::throw_exception($name.'参数不能为空');
                     }
                 }
             }
@@ -109,8 +113,8 @@ class Functions{
             //要检测的数据
             $value = $request->input($k);
 
-            //是否自定义了类型规则
-            $self_rule = count($regular) > 3 ? true: false;
+            //是否自定义了类型值的  限定范围
+            $self_rule = count($regular) > 2 ? true: false;
 
             if('str' == $type) {
 
@@ -119,23 +123,25 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        return $name . '的服务端长度范围出错';
+                        self::throw_exception($name.'参数的长度范围配置出错');
+
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (mb_strlen($value) < $range[0]) {
-                            return $name . '长度不可以小于' . $range[0];
+                            self::throw_exception($name . '长度不可以小于' . $range[0]);
                         }
 
                         if (mb_strlen($value) > $range[1]) {
-                            return $name . '长度不可以大于' . $range[1];
+                            self::throw_exception($name . '长度不可以大于' . $range[1]);
+
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (mb_strlen($value) > 85) {
-                        return $name . '长度不可以大于85个字节';
+                        self::throw_exception($name.'长度不可以大于85个字节');
                     }
                 }
 
@@ -145,18 +151,18 @@ class Functions{
                     $length = (int)$regular[2];
 
                     if (mb_strlen($value) > $length) {
-                        return $name . '长度不可以大于'.$length.'个字节';
+                        self::throw_exception($name . '长度不可以大于'.$length.'个字节');
                     }
                 }else{
                     if (mb_strlen($value) > 85) {
-                        return $name . '长度不可以大于85个字节';
+                        self::throw_exception($name.'长度不可以大于85个字节');
                     }
                 }
 
 
             }else if('text' == $type){
                 if(strlen($value) > 65535 - 10){
-                    return $name . '长度超过了限制';
+                    self::throw_exception($name.'长度超过了限制');
                 }
             }else if('int' == $type){
 
@@ -164,7 +170,7 @@ class Functions{
                 $check_type = (int)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为正整数';
+                    self::throw_exception($name.'数据类型应为正整数');
                 }
 
                 if ($self_rule) {
@@ -172,23 +178,23 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        return $name . '的服务端长度范围出错';
+                        self::throw_exception($name.'参数的长度配置范围出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if ($value < $range[0]) {
-                            return $name . '大小不可以小于' . $range[0];
+                            self::throw_exception($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            return $name . '大小不可以大于' . $range[1];
+                            self::throw_exception($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        return $name . '不能大于10位';
+                        self::throw_exception($name.'不能大于10位');
                     }
                 }
             }else if('maxInt' == $type){
@@ -197,11 +203,11 @@ class Functions{
                 $check_type = (int)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为正整数';
+                    self::throw_exception($name.'数据类型应为正整数');
                 }
 
                 if($value > $regular[2]){
-                    return $name . '大小超过了'.$regular[2];
+                    self::throw_exception($name . '大小超过了'.$regular[2]);
                 }
             }else if('array' == $type){
 
@@ -210,17 +216,17 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        return $name . '的服务端长度范围出错';
+                        self::throw_exception($name.'参数的长度范围配置出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (count($value) < $range[0]) {
-                            return $name . '的长度不可以小于' . $range[0];
+                            self::throw_exception($name . '的长度不可以小于' . $range[0]);
                         }
 
                         if (count($value) > $range[1]) {
-                            return $name . '的长度不可以大于' . $range[1];
+                            self::throw_exception($name . '的长度不可以大于' . $range[1]);
                         }
                     }
                 }
@@ -228,14 +234,14 @@ class Functions{
 
             }else if('maxArray' == $type){
                 if(count($value) > $regular[2]){
-                    return $name . '的长度不可以大于' . $regular[2];
+                    self::throw_exception($name . '的长度不可以大于' . $regular[2]);
                 }
             }else if('double' == $type){
                 //数据类型检车
                 $check_type = (double)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为浮点数';
+                    self::throw_exception($name . '数据类型应为浮点数');
                 }
 
                 if ($self_rule) {
@@ -243,23 +249,23 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        return $name . '的服务端长度范围出错';
+                        self::throw_exception($name . '参数的长度范围配置出错');
                     } else {
                         $range[0] = (double)$range[0];
                         $range[1] = (double)$range[1];
 
                         if ($value < $range[0]) {
-                            return $name . '大小不可以小于' . $range[0];
+                            self::throw_exception($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            return $name . '大小不可以大于' . $range[1];
+                            self::throw_exception($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        return $name . '不能大于10位';
+                        self::throw_exception($name.'不能大于10位');
                     }
                 }
             }else if('maxDouble' == $type){
@@ -268,32 +274,30 @@ class Functions{
                 $check_type = (double)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为浮点数';
+                    self::throw_exception($name.'数据类型应为浮点数');
                 }
 
                 if($value > $regular[2]){
-                    return $name . '大小超过了'.$regular[2];
+                    self::throw_exception($name . '大小超过了'.$regular[2]);
                 }
 
             } else if ('mobile' == $type) {
-                if (!self::mobile_regular($value)) {
 
-                    return '手机号格式错误';
+                if (!self::mobile_regular($value)) {
+                    self::throw_exception('手机号格式错误');
                 }
             } else if ('email' == $type) {
                 if (!self::email_regular($value)) {
-
-                    return '邮箱格式错误';
+                    self::throw_exception('邮箱格式错误');
                 }
             } else if ('enum' == $type) {
                 $range = explode(':', $regular[2]);
 
                 if(0 == count($range)){
-                    return '枚举参数配置错误';
+                    self::throw_exception('枚举参数配置错误');
                 }
                 if (!in_array($value, $range)) {
-
-                    return '枚举参数不在限定范围';
+                    self::throw_exception('枚举参数不在限定范围');
                 }
 
             } else if('positiveDouble' == $type){
@@ -301,11 +305,11 @@ class Functions{
                 $check_type = (double)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为浮点数';
+                    self::throw_exception($name.'数据类型应为浮点数');
                 }
 
                 if( 0 >= (double)$value){
-                    return $name.'不能为小于零的浮点数';
+                    self::throw_exception($name.'不能为小于零的浮点数');
                 }
             } else if('positiveInt' == $type){
 
@@ -313,15 +317,16 @@ class Functions{
                 $check_type = (int)$value == $value ? true: false;
 
                 if(!$check_type){
-                    return $name . '数据类型应为浮点数';
+                    self::throw_exception($name.'数据类型应为浮点数');
                 }
 
                 if( 0 >= (int)$value){
-                    return $name.'不能为小于零的整数';
+                    self::throw_exception($name.'不能为小于零的整数');
                 }
 
             }else{
-                return '参数类型配置错误';
+                self::throw_exception('参数类型配置错误');
+
             }
 
         }
