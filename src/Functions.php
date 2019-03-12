@@ -43,6 +43,14 @@ class Functions{
 
     }
 
+    public static function curlPostJsonArr($url,$data=[]){
+
+        $response = self::curlPost($url,$data);
+
+        return json_decode($response,true);
+
+    }
+
     public static function curlGet($url, $data = null){
 
         if (!empty($data)){
@@ -59,6 +67,14 @@ class Functions{
         $response = self::curl($url);
 
         return $response;
+
+    }
+
+    public static function curlGetJsonArr($url,$data = null){
+
+        $response = self::curlPost($url,$data);
+
+        return json_decode($response,true);
 
     }
 
