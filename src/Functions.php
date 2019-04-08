@@ -1,111 +1,179 @@
 <?php
+
 namespace Huaiyang\Functions;
 
 use Illuminate\Http\Response;
 
-class Functions{
-    public function hello(){
-        echo 'hello world';
-    }
+class Functions
+{
 
 
-    private static function throw_exception($msg){
-        throw new FunctionException($msg);
-    }
-    public static function buildSuccessResponse($data=[],$msg='success',$status_code=0){
+    /**
+     * 构建API成功后的返回JSON数据格式
+     * @param array $data
+     * @param string $msg
+     * @param string $statusCode
+     * @return mixed
+     */
+    public function buildSuccessResponse($data = [], $msg = 'success', $statusCode = '0')
+    {
 
 
         $response['result'] = 1;
         $response['message'] = $msg;
         $response['data'] = $data;
-        $response['status_code'] = $status_code;
+        $response['success_code'] = $statusCode;
 
-        return self::buildResponse($response,200);
+        return $this->buildResponse($response, 200);
 
     }
 
-
-    public static function buildErrorResponse($msg,$status_code=0){
+    /**
+     * 构建API失败后的返回JSON数据格式
+     * @param $msg
+     * @param string $errorCode
+     * @return mixed
+     */
+    public function buildErrorResponse($msg, $errorCode = '1000')
+    {
 
         $response['result'] = 0;
         $response['message'] = $msg;
-        $response['status_code'] = $status_code;
+        $response['error_code'] = $errorCode;
 
-        return self::buildResponse($response,200);
+        return $this->buildResponse($response, 200);
 
     }
 
-    public static function curlPost($url, $data = null){
+    /**
+     * 简单的CURL处理POST请求
+     * @param $url
+     * @param null $data
+     * @return bool|mixed
+     */
+    public function curlPost($url, $data = null)
+    {
 
-        $response = self::curl($url,$data);
+        $response = $this->curl($url, $data);
 
         return $response;
 
     }
 
-    public static function curlPostJsonArr($url,$data=[]){
+    /**
+     * 简单的CURL处理返回值是json格式的POST请求
+     * @param $url
+     * @param null $data
+     * @param string $msg
+     * @return mixed
+     */
+    public function curlPostJson($url, $data = null, $msg = '系统内部接口数据返回异常')
+    {
 
-        $response = self::curlPost($url,$data);
+        $response = $this->curlPost($url, $data);
 
-        return json_decode($response,true);
+        $json = json_decode($response, true);
 
-    }
-
-    public static function curlGet($url, $data = null){
-
-        if (!empty($data)){
-
-            foreach ($data as $k => $v){
-                $data[$k] = $k.'='.$v;
-            }
-
-            $params = implode('&',$data);
-
-            $url .= '?'.$params;
+        if (null === $json) {
+            $this->throwException($msg, 500);
+        } else {
+            return json_decode($response, true);
         }
 
-        $response = self::curl($url);
+
+    }
+
+    /**
+     * 简单的CURL处理GET请求
+     * @param $url
+     * @param null $data
+     * @return bool|mixed
+     */
+    public function curlGet($url, $data = null)
+    {
+
+        if (!empty($data)) {
+
+            foreach ($data as $k => $v) {
+                $data[$k] = $k . '=' . $v;
+            }
+
+            $params = implode('&', $data);
+
+            $url .= '?' . $params;
+        }
+
+        $response = $this->curl($url);
+
 
         return $response;
 
     }
 
-    public static function curlGetJsonArr($url,$data = null){
+    /**
+     * 简单的CURL处理返回值是json格式的GET请求
+     * @param $url
+     * @param null $data
+     * @param string $msg
+     * @return mixed
+     */
+    public function curlGetJson($url, $data = null, $msg = '系统内部接口数据返回异常')
+    {
 
-        $response = self::curlPost($url,$data);
+        $response = $this->curlGet($url, $data);
 
-        return json_decode($response,true);
+        $json = json_decode($response, true);
+
+        if (null === $json) {
+            $this->throwException($msg, 500);
+        } else {
+            return json_decode($response, true);
+        }
+
+        return json_decode($response, true);
 
     }
 
-    public static function paramsVerify($request,$fileds){
+    /**
+     * 用户输入的参数校验
+     * @param $request  laravel的Request对象实例
+     * @param $fileds   需要校验的参数数组 ['filed' => 'description|type|rule',...]
+     */
+    public function paramsVerify($request, $fileds)
+    {
 
         //检测空
-        foreach ($fileds as $k => $v){
-            $regular = explode('|',$v);
+        foreach ($fileds as $k => $v) {
+            $regular = explode('|', $v);
 
             //字段说明文字
             $name = $regular[0];
 
-            if(1 == count($regular)){
-                if('' === $request -> input($k) || 'no' === $request -> input($k,'no') || null === $request -> input($k)){
-                    self::throw_exception($name.'参数不能为空');
+            if (1 == count($regular)) {
+                //只有说明文字，则按照字符串不为空检测
+                if ('' === $request->input($k) || null === $request->input($k)) {
+                    $this->throwException($name . '参数不能为空');
                 }
-            }else{
-                //字段类型
+
+                //清除只检测空的字段
+                unset($fileds[$k]);
+            } else {
+                //包含字段类型
                 $type = $regular[1];
-                if('array' == $type){
-                    $array = $request -> input($k);
-                    if('array' != gettype($array)){
-                        self::throw_exception($name.'数据类型应为数组');
+                if ('array' == $type) {
+                    //字段类型是数组，检测数据类型和数组长度
+                    $array = $request->input($k);
+                    if ('array' != gettype($array)) {
+                        $this->throwException($name . '数据类型应为数组');
                     }
-                    if(0 == count($array)){
-                        self::throw_exception($name.'参数不能为空');
+                    if (0 == count($array)) {
+                        $this->throwException($name . '参数不能为空');
                     }
 
-                }else{
-                    if('' === $request -> input($k) || 'no' === $request -> input($k,'no') || null === $request -> input($k)){
-                        self::throw_exception($name.'参数不能为空');
+                } else {
+                    //字段类型是非数组，按照不能空值处理
+                    if ('' === $request->input($k) || null === $request->input($k)) {
+                        $this->throwException($name . '参数不能为空');
                     }
                 }
             }
@@ -113,80 +181,78 @@ class Functions{
         }
 
         //规则检测
-        foreach($fileds as $k => $v) {
+        foreach ($fileds as $k => $v) {
 
+            //字符串格式化成数组
             $regular = explode('|', $v);
+
             //字段说明文字
             $name = $regular[0];
 
-            if (1 == count($regular)) {
-                //如果只检测了空
-                continue;
-            }
-
             //字段类型
             $type = $regular[1];
+
             //要检测的数据
             $value = $request->input($k);
 
             //是否自定义了类型值的  限定范围
-            $self_rule = count($regular) > 2 ? true: false;
+            $self_rule = count($regular) > 2 ? true : false;
 
-            if('str' == $type) {
+            if ('str' == $type) {
 
                 if ($self_rule) {
                     //自定了长度限定
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        self::throw_exception($name.'参数的长度范围配置出错');
+                        $this->throwException($name . '参数的长度范围配置出错');
 
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (mb_strlen($value) < $range[0]) {
-                            self::throw_exception($name . '长度不可以小于' . $range[0]);
+                            $this->throwException($name . '长度不可以小于' . $range[0]);
                         }
 
                         if (mb_strlen($value) > $range[1]) {
-                            self::throw_exception($name . '长度不可以大于' . $range[1]);
+                            $this->throwException($name . '长度不可以大于' . $range[1]);
 
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (mb_strlen($value) > 85) {
-                        self::throw_exception($name.'长度不可以大于85个字节');
+                        $this->throwException($name . '长度不可以大于85个字节');
                     }
                 }
 
-            }else if('maxStr' == $type){
+            } else if ('maxStr' == $type) {
 
-                if($self_rule){
+                if ($self_rule) {
                     $length = (int)$regular[2];
 
                     if (mb_strlen($value) > $length) {
-                        self::throw_exception($name . '长度不可以大于'.$length.'个字节');
+                        $this->throwException($name . '长度不可以大于' . $length . '个字节');
                     }
-                }else{
+                } else {
                     if (mb_strlen($value) > 85) {
-                        self::throw_exception($name.'长度不可以大于85个字节');
+                        $this->throwException($name . '长度不可以大于85个字节');
                     }
                 }
 
 
-            }else if('text' == $type){
-                if(strlen($value) > 65535 - 10){
-                    self::throw_exception($name.'长度超过了限制');
+            } else if ('text' == $type) {
+                if (mb_strlen($value) > 21840) {
+                    $this->throwException($name . '长度超过了限制');
                 }
-            }else if('int' == $type){
+            } else if ('int' == $type) {
 
                 //数据类型检车
-                $check_type = (int)$value == $value ? true: false;
+                $check_type = (int)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name.'数据类型应为正整数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为正整数');
                 }
 
                 if ($self_rule) {
@@ -194,70 +260,70 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        self::throw_exception($name.'参数的长度配置范围出错');
+                        $this->throwException($name . '参数的长度配置范围出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if ($value < $range[0]) {
-                            self::throw_exception($name . '大小不可以小于' . $range[0]);
+                            $this->throwException($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            self::throw_exception($name . '大小不可以大于' . $range[1]);
+                            $this->throwException($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        self::throw_exception($name.'不能大于10位');
+                        $this->throwException($name . '不能大于10位');
                     }
                 }
-            }else if('maxInt' == $type){
+            } else if ('maxInt' == $type) {
 
                 //数据类型检车
-                $check_type = (int)$value == $value ? true: false;
+                $check_type = (int)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name.'数据类型应为正整数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为正整数');
                 }
 
-                if($value > $regular[2]){
-                    self::throw_exception($name . '大小超过了'.$regular[2]);
+                if ($value > $regular[2]) {
+                    $this->throwException($name . '大小超过了' . $regular[2]);
                 }
-            }else if('array' == $type){
+            } else if ('array' == $type) {
 
-                if($self_rule){
+                if ($self_rule) {
                     //自定了长度限定
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        self::throw_exception($name.'参数的长度范围配置出错');
+                        $this->throwException($name . '参数的长度范围配置出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (count($value) < $range[0]) {
-                            self::throw_exception($name . '的长度不可以小于' . $range[0]);
+                            $this->throwException($name . '的长度不可以小于' . $range[0]);
                         }
 
                         if (count($value) > $range[1]) {
-                            self::throw_exception($name . '的长度不可以大于' . $range[1]);
+                            $this->throwException($name . '的长度不可以大于' . $range[1]);
                         }
                     }
                 }
 
 
-            }else if('maxArray' == $type){
-                if(count($value) > $regular[2]){
-                    self::throw_exception($name . '的长度不可以大于' . $regular[2]);
+            } else if ('maxArray' == $type) {
+                if (count($value) > $regular[2]) {
+                    $this->throwException($name . '的长度不可以大于' . $regular[2]);
                 }
-            }else if('double' == $type){
+            } else if ('double' == $type) {
                 //数据类型检车
-                $check_type = (double)$value == $value ? true: false;
+                $check_type = (double)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name . '数据类型应为浮点数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为浮点数');
                 }
 
                 if ($self_rule) {
@@ -265,171 +331,192 @@ class Functions{
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        self::throw_exception($name . '参数的长度范围配置出错');
+                        $this->throwException($name . '参数的长度范围配置出错');
                     } else {
                         $range[0] = (double)$range[0];
                         $range[1] = (double)$range[1];
 
                         if ($value < $range[0]) {
-                            self::throw_exception($name . '大小不可以小于' . $range[0]);
+                            $this->throwException($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            self::throw_exception($name . '大小不可以大于' . $range[1]);
+                            $this->throwException($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        self::throw_exception($name.'不能大于10位');
+                        $this->throwException($name . '不能大于10位');
                     }
                 }
-            }else if('maxDouble' == $type){
+            } else if ('maxDouble' == $type) {
 
                 //数据类型检车
-                $check_type = (double)$value == $value ? true: false;
+                $check_type = (double)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name.'数据类型应为浮点数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为浮点数');
                 }
 
-                if($value > $regular[2]){
-                    self::throw_exception($name . '大小超过了'.$regular[2]);
+                if ($value > $regular[2]) {
+                    $this->throwException($name . '大小超过了' . $regular[2]);
                 }
 
             } else if ('mobile' == $type) {
 
-                if (!self::mobile_regular($value)) {
-                    self::throw_exception('手机号格式错误');
+                if (!$this->mobileRegular($value)) {
+                    $this->throwException('手机号格式错误');
                 }
             } else if ('email' == $type) {
-                if (!self::email_regular($value)) {
-                    self::throw_exception('邮箱格式错误');
+                if (!$this->emailRegular($value)) {
+                    $this->throwException('邮箱格式错误');
                 }
             } else if ('enum' == $type) {
                 $range = explode(':', $regular[2]);
 
-                if(0 == count($range)){
-                    self::throw_exception('枚举参数配置错误');
+                if (0 == count($range)) {
+                    $this->throwException('枚举参数配置错误');
                 }
                 if (!in_array($value, $range)) {
-                    self::throw_exception('枚举参数不在限定范围');
+                    $this->throwException('枚举参数不在限定范围');
                 }
 
-            } else if('positiveDouble' == $type){
+            } else if ('Double' == $type) {
                 //数据类型检车
-                $check_type = (double)$value == $value ? true: false;
+                $check_type = (double)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name.'数据类型应为浮点数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为浮点数');
                 }
 
-                if( 0 >= (double)$value){
-                    self::throw_exception($name.'不能为小于零的浮点数');
+                if (0 >= (double)$value) {
+                    $this->throwException($name . '不能为小于零的浮点数');
                 }
-            } else if('positiveInt' == $type){
+            } else if ('positiveInt' == $type) {
 
                 //数据类型检车
-                $check_type = (int)$value == $value ? true: false;
+                $check_type = (int)$value == $value ? true : false;
 
-                if(!$check_type){
-                    self::throw_exception($name.'数据类型应为浮点数');
+                if (!$check_type) {
+                    $this->throwException($name . '数据类型应为整数');
                 }
 
-                if( 0 >= (int)$value){
-                    self::throw_exception($name.'不能为小于零的整数');
+                if (0 >= (int)$value) {
+                    $this->throwException($name . '不能为小于零的整数');
                 }
 
-            }else{
-                self::throw_exception('参数类型配置错误');
+            } else {
+                $this->throwException('参数类型配置错误');
 
             }
 
         }
     }
 
-    //手机号正则校验
-    public static function mobile_regular($mobile){
-
-        if(preg_match("/^1[345678]\d{9}$/",$mobile)){
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-    //邮箱正则校验
-    public static function email_regular($email){
-
-        if(preg_match("/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,})$/",$email)){
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-    //获取未来几个月
-    /*
-     *  $date 日期，2018-12-05 16:04:24  或者 time()的时间戳格式
-     *  $months 未来的月数  默认1个月
-     *  $time  返回值是否带时分秒
+    /**
+     * 手机号正则校验
+     * @param $mobile
+     * @return bool
      */
+    public function mobileRegular($mobile)
+    {
 
-    public static function nature_next_months($date='',$months=1,$time=0){
+        if (preg_match("/^1[345678]\d{9}$/", $mobile)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-        if('' == $date){
+
+    /**
+     * 邮箱正则校验
+     * @param $email
+     * @return bool
+     */
+    public function emailRegular($email)
+    {
+
+        if (preg_match("/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,})$/", $email)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    /**
+     * 获取未来几个月
+     * @param string $date 日期，2018-12-05 16:04:24  或者 time()的时间戳格式
+     * @param int $months 未来的月数  默认1个月
+     * @param int $time 返回值是否带时分秒
+     * @return false|int
+     */
+    public function natureNextMonths($date = '', $months = 1, $time = 0)
+    {
+
+        if ('' == $date) {
             //如果日期为空，则取当前时间戳
-            if(1 == $time){
+            if (1 == $time) {
                 $timestamp = time();
-            }else{
-                $timestamp = strtotime(date('Y-m-d',time()));
+            } else {
+                $timestamp = strtotime(date('Y-m-d', time()));
             }
 
-        }else{
+        } else {
 
-            if(is_numeric($date)){
-                if(1 == $time){
+            if (is_numeric($date)) {
+                if (1 == $time) {
                     $timestamp = $date;
-                }else{
-                    $timestamp = strtotime(date('Y-m-d',$date));
+                } else {
+                    $timestamp = strtotime(date('Y-m-d', $date));
                 }
 
-            }else{
+            } else {
                 //如果传入的时间格式为日期的字符串格式
                 $timestamp = strtotime($date);
-                if(1 != $time){
-                    $timestamp = strtotime(date('Y-m-d',$timestamp));
+                if (1 != $time) {
+                    $timestamp = strtotime(date('Y-m-d', $timestamp));
                 }
             }
         }
 
-        $date_arr = explode('-',date("n-j",$timestamp));
+        $date_arr = explode('-', date("n-j", $timestamp));
 
         //获取明天的月日
-        $next_arr = explode('-',date("n-j",strtotime("+1 day",$timestamp)));
+        $next_arr = explode('-', date("n-j", strtotime("+1 day", $timestamp)));
 
         //判断当前是不是当前月的最后一天
-        if($next_arr[0] != $date_arr[0]){
+        if ($next_arr[0] != $date_arr[0]) {
             //如果月变了，说明是最后一天
-            return strtotime("last day of +$months month",$timestamp);
-        }else{
+            return strtotime("last day of +$months month", $timestamp);
+        } else {
             //否则是非第一天和最后一天的日期，不做任何修正
-            return strtotime("+$months month",$timestamp);
+            return strtotime("+$months month", $timestamp);
         }
 
     }
 
-    //两个日期之间相差几个自然月
-    public static function nature_differ_months($start_time,$end_time,$limit=18){
+
+    /**
+     * 两个日期之间相差几个自然月
+     * @param $start_time
+     * @param $end_time
+     * @param int $limit
+     * @return int
+     */
+    public function natureDifferMonths($start_time, $end_time, $limit = 18)
+    {
 
         $months = 0;
-        for($i=1;$i<=$limit + 1;$i++){
+        for ($i = 1; $i <= $limit + 1; $i++) {
 
-            $feture_months = nature_next_months($start_time,$i);
+            $feture_months = $this->natureNextMonths($start_time, $i);
 
-            if($feture_months > $end_time  || $i == $limit + 1){
+            if ($feture_months > $end_time || $i == $limit + 1) {
 
-                $months = $i-1;
+                $months = $i - 1;
                 break;
             }
         }
@@ -437,33 +524,132 @@ class Functions{
         return $months;
     }
 
+    /**
+     * 将时间戳格式化成模糊时间
+     * @param $sTime
+     * @param string $type
+     * @param string $alt
+     * @return false|string
+     */
+    public function friendlyDate($sTime, $type = 'normal', $alt = 'false')
+    {
+        if (!$sTime)
+            return '';
 
-    private static function curl($url,$data=null){
+        //sTime=源时间，cTime=当前时间，dTime=时间差
+        $cTime = time();
+        $dTime = $cTime - $sTime;
+        $dDay = intval(date("z", $cTime)) - intval(date("z", $sTime));
+        //$dDay     =   intval($dTime/3600/24);
+        $dYear = intval(date("Y", $cTime)) - intval(date("Y", $sTime));
+        //normal：n秒前，n分钟前，n小时前，日期
+        if ($type == 'normal') {
+            if ($dTime < 60) {
+                if ($dTime < 10) {
+                    return '刚刚';    //by yangjs
+                } else {
+                    return intval(floor($dTime / 10) * 10) . "秒前";
+                }
+            } elseif ($dTime < 3600) {
+                return intval($dTime / 60) . "分钟前";
+                //今天的数据.年份相同.日期相同.
+            } elseif ($dYear == 0 && $dDay == 0) {
+                //return intval($dTime/3600)."小时前";
+                return date('H:i', $sTime);
+            } elseif ($dYear == 0) {
+                return date("m月d日", $sTime);
+            } else {
+                return date("Y-m-d", $sTime);
+            }
+        } elseif ($type == 'mohu') {
+            if ($dTime < 60) {
+                return $dTime . "秒前";
+            } elseif ($dTime < 3600) {
+                return intval($dTime / 60) . "分钟前";
+            } elseif ($dTime >= 3600 && $dDay == 0) {
+                return intval($dTime / 3600) . "小时前";
+            } elseif ($dDay > 0 && $dDay <= 7) {
+                return intval($dDay) . "天前";
+            } elseif ($dDay > 7 && $dDay <= 30) {
+                return intval($dDay / 7) . '周前';
+            } elseif ($dDay > 30) {
+                return intval($dDay / 30) . '个月前';
+            }
+            //full: Y-m-d , H:i:s
+        } elseif ($type == 'full') {
+            return date("Y-m-d , H:i:s", $sTime);
+        } elseif ($type == 'ymd') {
+            return date("Y-m-d", $sTime);
+        } else if ($type == 'oneday') {
+
+            if ($dDay == 0) {
+                return date('H:i', $sTime);
+            } else {
+                return date('m-d H:i', $sTime);
+            }
+        } else {
+            if ($dTime < 60) {
+                return $dTime . "秒前";
+            } elseif ($dTime < 3600) {
+                return intval($dTime / 60) . "分钟前";
+            } elseif ($dTime >= 3600 && $dDay == 0) {
+                return intval($dTime / 3600) . "小时前";
+            } elseif ($dYear == 0) {
+                return date("Y-m-d H:i:s", $sTime);
+            } else {
+                return date("Y-m-d H:i:s", $sTime);
+            }
+        }
+    }
+
+    /**
+     * 简单的CURL请求
+     * @param $url
+     * @param null $data
+     * @return bool|mixed
+     */
+    private function curl($url, $data = null)
+    {
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, FALSE);
-        if (!empty($data)){
+        if (!empty($data)) {
             curl_setopt($curl, CURLOPT_POST, 1);
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
         }
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($curl);
-        $httpCode = curl_getinfo($curl,CURLINFO_HTTP_CODE);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         curl_close($curl);
-        if('200' == $httpCode){
+        if ('200' == $httpCode) {
             return $output;
-        }else{
+        } else {
             return false;
         }
 
     }
 
-    private static function buildResponse($response,$status_code){
+    /**
+     * 构建JSON格式的API返回数据
+     * @param $response
+     * @param $status_code
+     * @return mixed
+     */
+    private function buildResponse($response, $status_code)
+    {
 
-        return response() -> json($response,$status_code);
+        return response()->json($response, $status_code);
     }
 
+    /**
+     * 抛出异常
+     * @param $msg
+     */
+    private function throwException($msg)
+    {
+        throw new FunctionException($msg);
+    }
 
 }

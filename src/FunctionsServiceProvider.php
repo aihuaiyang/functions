@@ -8,6 +8,7 @@ class FunctionsServiceProvider extends ServiceProvider
 {
 
     protected $defer = true;
+
     /**
      * Bootstrap services.
      *
@@ -31,7 +32,8 @@ class FunctionsServiceProvider extends ServiceProvider
         });
     }
 
-    public function provides(){
+    public function provides()
+    {
         return ['functions'];
     }
 }
