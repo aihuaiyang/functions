@@ -1,0 +1,17 @@
+{
+  "name": "huaiyang/functions",
+  "description": "Some of my common method functions, if there are bugs, welcome criticismm！",
+  "authors": [
+    {
+      "name": "huaiyang",
+      "email": "873811021@qq.com"
+    }
+  ],
+  "require": {
+  },
+  "autoload": {
+    "psr-4": {
+      "Huaiyang\\Functions\\": "src/"
+    }
+  }
+}

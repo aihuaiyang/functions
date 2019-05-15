@@ -2,11 +2,152 @@
 
 namespace Huaiyang\Functions;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Psr7;
+use GuzzleHttp\Exception\RequestException;
+
+use Huaiyang\Breakpoint\Breakpoint;
 
 class Functions
 {
 
+    private $devEnv = true;
+
+    private $httpErrorCode = [
+        '10001' => '请求异常错误',
+        '20001' => '响应异常错误',
+        '20002' => '响应结果非json格式数据',
+    ];
+
+    private $httpClient = null;
+
+    public function __construct()
+    {
+
+        if ('production' == config('app.env')) {
+            $this->env = false;
+        }
+
+        $this->httpClient = new Client();
+    }
+
+    public function test()
+    {
+
+        $url = 'http://jipay.caohuaiyang.com/v1/order/userBuy/2921';
+
+        $resposne = $this->curlGet($url);
+
+        //dump($resposne);
+//        $arr['message'] = 'hello world';
+//        $arr['error_code'] = '1001';
+//        $arr['extension'] = [
+//            'url' => 'http:/',
+//            'params' => 'absds'
+//        ];
+//
+//        self::throwException(json_encode($arr),500);
+    }
+
+
+    /**
+     *
+     * POST 请求
+     * @param $url
+     * @param array $data
+     * @return mixed
+     */
+    public function curlPost($url, $params = [], $headers = [])
+    {
+
+
+        $url = $this->getUrl($url);
+
+        //开发环境异常返回的扩展参数
+        $extension['url'] = $url;
+        $extension['params'] = $params;
+
+        try {
+            $response = $this->httpClient->request('POST', $url, ['form_params' => $params, 'headers' => $headers]);
+
+            return $this->curlResponse($response, $extension);
+
+        } catch (RequestException $e) {
+
+            $exception['error_code'] = 10001;
+            $extension['exception_msg'] = $e -> getMessage();
+
+            $this->httpException($exception, $extension);
+
+        }
+
+    }
+
+
+    /**
+     *
+     * POST 请求
+     * @param $url
+     * @param array $data
+     * @return mixed
+     */
+    public function curlGet($url, $params = [], $headers = [])
+    {
+
+        $url = $this->getUrl($url);
+
+        //开发环境异常返回的扩展参数
+        $extension['url'] = $url;
+        $extension['params'] = $params;
+
+        try {
+            $response = $this->httpClient->request('GET', $url, ['query' => $params, 'headers' => $headers]);
+
+            return $this->curlResponse($response, $extension);
+
+        } catch (RequestException $e) {
+
+            $exception['error_code'] = 10001;
+            $extension['exception_msg'] = $e -> getMessage();
+            $this->httpException($exception, $extension);
+
+        }
+
+    }
+
+    /**
+     *
+     * POST 请求
+     * @param $url
+     * @param array $data
+     * @return mixed
+     */
+    public function curlPut($url, $params = [], $headers = [])
+    {
+
+        $url = $this->getUrl($url);
+
+        //开发环境异常返回的扩展参数
+        $extension['url'] = $url;
+        $extension['params'] = $params;
+
+        try {
+            $response = $this->httpClient->request('GET', $url, ['form_params' => $params, 'headers' => $headers]);
+
+            return $this->curlResponse($response, $extension);
+
+        } catch (RequestException $e) {
+
+            $exception['error_code'] = 10001;
+            $extension['exception_msg'] = $e -> getMessage();
+            $this->httpException($exception, $extension);
+
+        }
+
+    }
 
     /**
      * 构建API成功后的返回JSON数据格式
@@ -34,7 +175,7 @@ class Functions
      * @param string $errorCode
      * @return mixed
      */
-    public function buildErrorResponse($msg, $errorCode = '1000')
+    public function buildErrorResponse($msg, $errorCode = '0')
     {
 
         $response['result'] = 0;
@@ -45,101 +186,13 @@ class Functions
 
     }
 
-    /**
-     * 简单的CURL处理POST请求
-     * @param $url
-     * @param null $data
-     * @return bool|mixed
-     */
-    public function curlPost($url, $data = null)
-    {
-
-        $response = $this->curl($url, $data);
-
-        return $response;
-
-    }
-
-    /**
-     * 简单的CURL处理返回值是json格式的POST请求
-     * @param $url
-     * @param null $data
-     * @param string $msg
-     * @return mixed
-     */
-    public function curlPostJson($url, $data = null, $msg = '系统内部接口数据返回异常')
-    {
-
-        $response = $this->curlPost($url, $data);
-
-        $json = json_decode($response, true);
-
-        if (null === $json) {
-            $this->throwException($msg, 500);
-        } else {
-            return json_decode($response, true);
-        }
-
-
-    }
-
-    /**
-     * 简单的CURL处理GET请求
-     * @param $url
-     * @param null $data
-     * @return bool|mixed
-     */
-    public function curlGet($url, $data = null)
-    {
-
-        if (!empty($data)) {
-
-            foreach ($data as $k => $v) {
-                $data[$k] = $k . '=' . $v;
-            }
-
-            $params = implode('&', $data);
-
-            $url .= '?' . $params;
-        }
-
-        $response = $this->curl($url);
-
-
-        return $response;
-
-    }
-
-    /**
-     * 简单的CURL处理返回值是json格式的GET请求
-     * @param $url
-     * @param null $data
-     * @param string $msg
-     * @return mixed
-     */
-    public function curlGetJson($url, $data = null, $msg = '系统内部接口数据返回异常')
-    {
-
-        $response = $this->curlGet($url, $data);
-
-        $json = json_decode($response, true);
-
-        if (null === $json) {
-            $this->throwException($msg, 500);
-        } else {
-            return json_decode($response, true);
-        }
-
-        return json_decode($response, true);
-
-    }
 
     /**
      * 用户输入的参数校验
      * @param $request  laravel的Request对象实例
      * @param $fileds   需要校验的参数数组 ['filed' => 'description|type|rule',...]
      */
-    public function paramsVerify($request, $fileds)
+    public function paramsVerify(Request $request, $fileds)
     {
 
         //检测空
@@ -366,11 +419,11 @@ class Functions
             } else if ('mobile' == $type) {
 
                 if (!$this->mobileRegular($value)) {
-                    $this->throwException('手机号格式错误');
+                    $this->throwException($name . '格式错误');
                 }
             } else if ('email' == $type) {
                 if (!$this->emailRegular($value)) {
-                    $this->throwException('邮箱格式错误');
+                    $this->throwException($name . '格式错误');
                 }
             } else if ('enum' == $type) {
                 $range = explode(':', $regular[2]);
@@ -379,10 +432,10 @@ class Functions
                     $this->throwException('枚举参数配置错误');
                 }
                 if (!in_array($value, $range)) {
-                    $this->throwException('枚举参数不在限定范围');
+                    $this->throwException($name . '不在限定范围');
                 }
 
-            } else if ('Double' == $type) {
+            } else if ('positiveDouble' == $type) {
                 //数据类型检车
                 $check_type = (double)$value == $value ? true : false;
 
@@ -406,6 +459,17 @@ class Functions
                     $this->throwException($name . '不能为小于零的整数');
                 }
 
+            } else if ('money' == $type) {
+                if (!$this->moneyRegular($value)) {
+                    $this->throwException($name . '格式错误');
+                }
+            } else if ('fakeBoolean' == $type) {
+
+                $Boolean = [0, 1];
+
+                if (!in_array($value, $Boolean)) {
+                    $this->throwException($name . '参数范围限定为0和1');
+                }
             } else {
                 $this->throwException('参数类型配置错误');
 
@@ -445,6 +509,16 @@ class Functions
         }
     }
 
+
+    public function moneyRegular($money)
+    {
+
+        if (preg_match("/(^[1-9]([0-9]+)?(\.[0-9]{1,2})?$)|(^(0){1}$)|(^[0-9]\.[0-9]([0-9])?$)/", $money)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     /**
      * 获取未来几个月
@@ -602,34 +676,6 @@ class Functions
         }
     }
 
-    /**
-     * 简单的CURL请求
-     * @param $url
-     * @param null $data
-     * @return bool|mixed
-     */
-    private function curl($url, $data = null)
-    {
-
-        $curl = curl_init();
-        curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, FALSE);
-        if (!empty($data)) {
-            curl_setopt($curl, CURLOPT_POST, 1);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
-        }
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-        $output = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        curl_close($curl);
-        if ('200' == $httpCode) {
-            return $output;
-        } else {
-            return false;
-        }
-
-    }
 
     /**
      * 构建JSON格式的API返回数据
@@ -647,9 +693,70 @@ class Functions
      * 抛出异常
      * @param $msg
      */
-    private function throwException($msg)
+    private function throwException($msg, $code = 200)
     {
-        throw new FunctionException($msg);
+
+        throw new Breakpoint($msg, $code);
     }
 
+    //获取http请求的URL
+    private function getUrl($url)
+    {
+
+        $urls = config('functions.urls');
+
+        if (array_key_exists($url, $urls)) {
+            return $urls[$url];
+        } else {
+            return $url;
+        }
+    }
+
+
+    private function curlResponse($response, $extension)
+    {
+
+        $body = $response->getBody();
+        $response_content = $body->getContents();
+
+        $extension['response_code'] = $response->getStatusCode();
+        $extension['response_content'] = $response_content;
+
+        if ('200' != $response->getStatusCode()) {
+            //状态码错误
+            $exception['error_code'] = 20001;
+
+            $this -> httpException($exception,$extension);
+        }
+
+        $arr = json_decode($response_content, true);
+
+        if(null === $arr){
+            //响应的数据结构非JSON格式
+
+            $exception['error_code'] = 20002;
+
+            $this -> httpException($exception,$extension);
+
+        }else{
+            return $arr;
+        }
+    }
+
+    /**
+     * http 请求异常
+     * @param $exception
+     * @param array $extension
+     */
+    private function httpException($exception, $extension = [])
+    {
+
+        $exception['message'] = $this->httpErrorCode[$exception['error_code']];
+
+        if ($this->devEnv) {
+
+            $exception['extension'] = $extension;
+        }
+        $this -> throwException(json_encode($exception), 200);
+    }
 }
