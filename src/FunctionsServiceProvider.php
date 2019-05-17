@@ -16,10 +16,12 @@ class FunctionsServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
-        $this->publishes([
-            __DIR__.'/config/functions.php' => config_path('functions.php'), // 发布配置文件到 laravel 的config 下
-        ]);
+        //配置文件
+        $path = realpath(__DIR__.'/config/functions.php');
+
+        $this->publishes([$path => config_path('functions.php')]);
+        $this->mergeConfigFrom($path, 'functions');
+
     }
 
     /**

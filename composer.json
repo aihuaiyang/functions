@@ -1,6 +1,6 @@
 {
   "name": "huaiyang/functions",
-  "description": "Some of my common method functions, if there are bugs, welcome criticismm！",
+  "description": "自己写的一些公共方法，最好不要用在生产环境，因为我很菜......！",
   "authors": [
     {
       "name": "huaiyang",
@@ -12,6 +12,16 @@
   "autoload": {
     "psr-4": {
       "Huaiyang\\Functions\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Huaiyang\\Functions\\FunctionsServiceProvider"
+      ],
+      "aliases": {
+        "Functions": "Huaiyang\\Functions\\Facades\\Functions"
+      }
     }
   }
 }
