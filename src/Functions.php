@@ -37,19 +37,7 @@ class Functions
     public function test()
     {
 
-        $url = 'http://jipay.caohuaiyang.com/v1/order/userBuy/2921';
-
-        $resposne = $this->curlGet($url);
-
-        //dump($resposne);
-//        $arr['message'] = 'hello world';
-//        $arr['error_code'] = '1001';
-//        $arr['extension'] = [
-//            'url' => 'http:/',
-//            'params' => 'absds'
-//        ];
-//
-//        self::throwException(json_encode($arr),500);
+        echo 'hello functions';
     }
 
 
