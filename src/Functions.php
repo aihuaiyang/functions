@@ -9,8 +9,6 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\RequestException;
 
-use Huaiyang\Breakpoint\Breakpoint;
-
 class Functions
 {
 
@@ -178,13 +176,13 @@ class Functions
     /**
      * 用户输入的参数校验
      * @param $request  laravel的Request对象实例
-     * @param $fileds   需要校验的参数数组 ['filed' => 'description|type|rule',...]
+     * @param $fields   需要校验的参数数组 ['field' => 'description|type|rule',...]
      */
-    public function paramsVerify(Request $request, $fileds)
+    public function paramsVerify(Request $request, $fields)
     {
 
         //检测空
-        foreach ($fileds as $k => $v) {
+        foreach ($fields as $k => $v) {
             $regular = explode('|', $v);
 
             //字段说明文字
@@ -193,11 +191,11 @@ class Functions
             if (1 == count($regular)) {
                 //只有说明文字，则按照字符串不为空检测
                 if ('' === $request->input($k) || null === $request->input($k)) {
-                    $this->throwException($name . '参数不能为空');
+                    $this->verifyParamException($name . '不能为空');
                 }
 
                 //清除只检测空的字段
-                unset($fileds[$k]);
+                unset($fields[$k]);
             } else {
                 //包含字段类型
                 $type = $regular[1];
@@ -205,16 +203,16 @@ class Functions
                     //字段类型是数组，检测数据类型和数组长度
                     $array = $request->input($k);
                     if ('array' != gettype($array)) {
-                        $this->throwException($name . '数据类型应为数组');
+                        $this->verifyParamException($name . '数据类型应为数组');
                     }
                     if (0 == count($array)) {
-                        $this->throwException($name . '参数不能为空');
+                        $this->verifyParamException($name . '不能为空');
                     }
 
                 } else {
                     //字段类型是非数组，按照不能空值处理
                     if ('' === $request->input($k) || null === $request->input($k)) {
-                        $this->throwException($name . '参数不能为空');
+                        $this->verifyParamException($name . '不能为空');
                     }
                 }
             }
@@ -222,7 +220,7 @@ class Functions
         }
 
         //规则检测
-        foreach ($fileds as $k => $v) {
+        foreach ($fields as $k => $v) {
 
             //字符串格式化成数组
             $regular = explode('|', $v);
@@ -246,25 +244,25 @@ class Functions
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        $this->throwException($name . '参数的长度范围配置出错');
+                        $this->verifyParamException($name . '的长度范围配置出错');
 
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (mb_strlen($value) < $range[0]) {
-                            $this->throwException($name . '长度不可以小于' . $range[0]);
+                            $this->verifyParamException($name . '的长度不可以小于' . $range[0]);
                         }
 
                         if (mb_strlen($value) > $range[1]) {
-                            $this->throwException($name . '长度不可以大于' . $range[1]);
+                            $this->verifyParamException($name . '的长度不可以大于' . $range[1]);
 
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (mb_strlen($value) > 85) {
-                        $this->throwException($name . '长度不可以大于85个字节');
+                        $this->verifyParamException($name . '的长度不可以大于85个字节');
                     }
                 }
 
@@ -274,18 +272,18 @@ class Functions
                     $length = (int)$regular[2];
 
                     if (mb_strlen($value) > $length) {
-                        $this->throwException($name . '长度不可以大于' . $length . '个字节');
+                        $this->verifyParamException($name . '的长度不可以大于' . $length . '个字节');
                     }
                 } else {
                     if (mb_strlen($value) > 85) {
-                        $this->throwException($name . '长度不可以大于85个字节');
+                        $this->verifyParamException($name . '的长度不可以大于85个字节');
                     }
                 }
 
 
             } else if ('text' == $type) {
                 if (mb_strlen($value) > 21840) {
-                    $this->throwException($name . '长度超过了限制');
+                    $this->verifyParamException($name . '的长度超过了限制');
                 }
             } else if ('int' == $type) {
 
@@ -293,7 +291,7 @@ class Functions
                 $check_type = (int)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为正整数');
+                    $this->verifyParamException($name . '的数据类型应为正整数');
                 }
 
                 if ($self_rule) {
@@ -301,23 +299,23 @@ class Functions
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        $this->throwException($name . '参数的长度配置范围出错');
+                        $this->verifyParamException($name . '的参数的长度配置范围出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if ($value < $range[0]) {
-                            $this->throwException($name . '大小不可以小于' . $range[0]);
+                            $this->verifyParamException($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            $this->throwException($name . '大小不可以大于' . $range[1]);
+                            $this->verifyParamException($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        $this->throwException($name . '不能大于10位');
+                        $this->verifyParamException($name . '不能大于10位');
                     }
                 }
             } else if ('maxInt' == $type) {
@@ -326,11 +324,11 @@ class Functions
                 $check_type = (int)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为正整数');
+                    $this->verifyParamException($name . '的数据类型应为正整数');
                 }
 
                 if ($value > $regular[2]) {
-                    $this->throwException($name . '大小超过了' . $regular[2]);
+                    $this->verifyParamException($name . '大小超过了' . $regular[2]);
                 }
             } else if ('array' == $type) {
 
@@ -339,17 +337,17 @@ class Functions
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        $this->throwException($name . '参数的长度范围配置出错');
+                        $this->verifyParamException($name . '的长度范围配置出错');
                     } else {
                         $range[0] = (int)$range[0];
                         $range[1] = (int)$range[1];
 
                         if (count($value) < $range[0]) {
-                            $this->throwException($name . '的长度不可以小于' . $range[0]);
+                            $this->verifyParamException($name . '的长度不可以小于' . $range[0]);
                         }
 
                         if (count($value) > $range[1]) {
-                            $this->throwException($name . '的长度不可以大于' . $range[1]);
+                            $this->verifyParamException($name . '的长度不可以大于' . $range[1]);
                         }
                     }
                 }
@@ -357,14 +355,14 @@ class Functions
 
             } else if ('maxArray' == $type) {
                 if (count($value) > $regular[2]) {
-                    $this->throwException($name . '的长度不可以大于' . $regular[2]);
+                    $this->verifyParamException($name . '的长度不可以大于' . $regular[2]);
                 }
             } else if ('double' == $type) {
                 //数据类型检车
                 $check_type = (double)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为浮点数');
+                    $this->verifyParamException($name . '数据类型应为浮点数');
                 }
 
                 if ($self_rule) {
@@ -372,23 +370,23 @@ class Functions
                     $range = explode(':', $regular[2]);
 
                     if (1 == count($range)) {
-                        $this->throwException($name . '参数的长度范围配置出错');
+                        $this->verifyParamException($name . '的长度范围配置出错');
                     } else {
                         $range[0] = (double)$range[0];
                         $range[1] = (double)$range[1];
 
                         if ($value < $range[0]) {
-                            $this->throwException($name . '大小不可以小于' . $range[0]);
+                            $this->verifyParamException($name . '大小不可以小于' . $range[0]);
                         }
 
                         if ($value > $range[1]) {
-                            $this->throwException($name . '大小不可以大于' . $range[1]);
+                            $this->verifyParamException($name . '大小不可以大于' . $range[1]);
                         }
                     }
                 } else {
                     //没有限定长度则按照默认长度计算
                     if (strlen($value) > 10) {
-                        $this->throwException($name . '不能大于10位');
+                        $this->verifyParamException($name . '不能大于10位');
                     }
                 }
             } else if ('maxDouble' == $type) {
@@ -397,30 +395,30 @@ class Functions
                 $check_type = (double)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为浮点数');
+                    $this->verifyParamException($name . '数据类型应为浮点数');
                 }
 
                 if ($value > $regular[2]) {
-                    $this->throwException($name . '大小超过了' . $regular[2]);
+                    $this->verifyParamException($name . '大小超过了' . $regular[2]);
                 }
 
             } else if ('mobile' == $type) {
 
                 if (!$this->mobileRegular($value)) {
-                    $this->throwException($name . '格式错误');
+                    $this->verifyParamException($name . '手机号格式错误');
                 }
             } else if ('email' == $type) {
                 if (!$this->emailRegular($value)) {
-                    $this->throwException($name . '格式错误');
+                    $this->verifyParamException($name . '邮箱格式错误');
                 }
             } else if ('enum' == $type) {
                 $range = explode(':', $regular[2]);
 
                 if (0 == count($range)) {
-                    $this->throwException('枚举参数配置错误');
+                    $this->verifyParamException('枚举参数配置错误');
                 }
                 if (!in_array($value, $range)) {
-                    $this->throwException($name . '不在限定范围');
+                    $this->verifyParamException($name . '不在限定范围');
                 }
 
             } else if ('positiveDouble' == $type) {
@@ -428,11 +426,11 @@ class Functions
                 $check_type = (double)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为浮点数');
+                    $this->verifyParamException($name . '数据类型应为浮点数');
                 }
 
                 if (0 >= (double)$value) {
-                    $this->throwException($name . '不能为小于零的浮点数');
+                    $this->verifyParamException($name . '不能为小于零的浮点数');
                 }
             } else if ('positiveInt' == $type) {
 
@@ -440,7 +438,7 @@ class Functions
                 $check_type = (int)$value == $value ? true : false;
 
                 if (!$check_type) {
-                    $this->throwException($name . '数据类型应为整数');
+                    $this->verifyParamException($name . '数据类型应为整数');
                 }
 
                 if (0 >= (int)$value) {
@@ -449,17 +447,17 @@ class Functions
 
             } else if ('money' == $type) {
                 if (!$this->moneyRegular($value)) {
-                    $this->throwException($name . '格式错误');
+                    $this->verifyParamException($name . '格式错误');
                 }
             } else if ('fakeBoolean' == $type) {
 
                 $Boolean = [0, 1];
 
                 if (!in_array($value, $Boolean)) {
-                    $this->throwException($name . '参数范围限定为0和1');
+                    $this->verifyParamException($name . '参数范围限定为0和1');
                 }
             } else {
-                $this->throwException('参数类型配置错误');
+                $this->verifyParamException('参数类型配置错误');
 
             }
 
@@ -574,9 +572,9 @@ class Functions
         $months = 0;
         for ($i = 1; $i <= $limit + 1; $i++) {
 
-            $feture_months = $this->natureNextMonths($start_time, $i);
+            $future_months = $this->natureNextMonths($start_time, $i);
 
-            if ($feture_months > $end_time || $i == $limit + 1) {
+            if ($future_months > $end_time || $i == $limit + 1) {
 
                 $months = $i - 1;
                 break;
@@ -684,7 +682,7 @@ class Functions
     private function throwException($msg, $code = 200)
     {
 
-        throw new Breakpoint($msg, $code);
+        throw new FunctionException($msg, $code);
     }
 
     //获取http请求的URL
@@ -745,6 +743,22 @@ class Functions
 
             $exception['extension'] = $extension;
         }
-        $this -> throwException(json_encode($exception), 200);
+
+        $status_code = config('functions.http_error_status_code');
+
+        $this -> throwException(json_encode($exception), $status_code);
+    }
+
+    /**
+     *
+     * 校验参数时异常处理
+     * @param $message
+     */
+    private function verifyParamException($message){
+
+        $status_code = config('functions.verify_param_status_code');
+
+        $this -> throwException($message,$status_code);
+
     }
 }

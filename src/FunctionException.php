@@ -7,7 +7,7 @@ use Illuminate\Http\Response;
 
 class FunctionException extends Exception
 {
-    public function __construct(string $message = "", int $code = 200)
+    public function __construct(string $message = null, int $code = null)
     {
         parent::__construct($message, $code);
     }
@@ -22,7 +22,7 @@ class FunctionException extends Exception
         $response = json_decode($this->message,true);
 
         if (null === $response) {
-            $exception['message'] = $response;
+            $exception['message'] = $this->message;
         }else{
 
             if(array_key_exists('message',$response)){
